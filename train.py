@@ -112,7 +112,7 @@ def main():
               'num_workers': 6, 
               'drop_last': True}
 
-    dataFolder = 'DATA_PATH'
+    dataFolder = './sample_data'
 
     df_train = pd.read_csv(dataFolder + '/train.csv')
     df_val = pd.read_csv(dataFolder + '/val.csv')
