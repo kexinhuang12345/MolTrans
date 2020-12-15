@@ -11,6 +11,6 @@ In the dataset folder, we provide all three processed datasets used in MolTrans:
 
 We provide an example jupyter notebook in the repository. Although it runs for 100 epochs, we find 50 epochs is way enough and all the results in paper are run by 50 epochs. 
 
-You can also directly run moltrans_X.py for each dataset.
+You can also directly run `python train.py --task ${task_name}` to run the experiments. `${task_name}` could either be `biosnap`,`bindingdb` , and `davis`. For the BindingDB and DAVIS, please refer this [Page](https://zitniklab.hms.harvard.edu/TDC/multi_pred_tasks/dti/) for more details.
 
 Will add more codes and tests in the next couple of weeks. But this should be enough to try on MolTrans.
