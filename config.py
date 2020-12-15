@@ -3,7 +3,6 @@ def BIN_config_DBPE():
     config['batch_size'] = 16
     config['input_dim_drug'] = 23532
     config['input_dim_target'] = 16693
-    config['LR'] = 1e-4
     config['train_epoch'] = 13
     config['max_drug_seq'] = 50
     config['max_protein_seq'] = 545
