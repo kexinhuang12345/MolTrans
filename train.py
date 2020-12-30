@@ -21,16 +21,16 @@ use_cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if use_cuda else "cpu")
 
 parser = ArgumentParser(description='MolTrans Training.')
-parser.add_argument('-b', '--batch-size', default=32, type=int,
+parser.add_argument('-b', '--batch-size', default=16, type=int,
                     metavar='N',
-                    help='mini-batch size (default: 32), this is the total '
+                    help='mini-batch size (default: 16), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
-parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
-                    help='number of data loading workers (default: 4)')
+parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
+                    help='number of data loading workers (default: 0)')
 parser.add_argument('--epochs', default=50, type=int, metavar='N',
                     help='number of total epochs to run')
-parser.add_argument('--task', choices=['biosnap'],
+parser.add_argument('--task', choices=['biosnap', 'bindingdb', 'davis'],
                     default='', type=str, metavar='TASK',
                     help='Task name. Could be biosnap, bindingdb and davis.')
 parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
