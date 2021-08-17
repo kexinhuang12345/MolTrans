@@ -114,6 +114,7 @@ def test(data_generator, model):
 def main():
     config = BIN_config_DBPE()
     args = parser.parse_args()
+    config['batch_size'] = args.batch_size
 
 
     loss_history = []
