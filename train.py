@@ -28,7 +28,7 @@ parser.add_argument('-b', '--batch-size', default=64, type=int,
                          'using Data Parallel or Distributed Data Parallel')
 parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
                     help='number of data loading workers (default: 0)')
-parser.add_argument('--epochs', default=300, type=int, metavar='N',
+parser.add_argument('--epochs', default=30, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--task', choices=['biosnap', 'bindingdb', 'davis'],
                     default='', type=str, metavar='TASK',
