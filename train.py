@@ -1,5 +1,6 @@
 import copy
 from time import time
+import os
 
 import numpy as np
 import pandas as pd
@@ -17,6 +18,8 @@ from config import BIN_config_DBPE
 from models import BIN_Interaction_Flat
 from stream import BIN_Data_Encoder
 
+from utils import get_date_postfix
+
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if use_cuda else "cpu")
 
@@ -33,9 +36,9 @@ parser.add_argument('--epochs', default=30, type=int, metavar='N',
 parser.add_argument('--task', choices=['biosnap', 'bindingdb', 'davis'],
                     default='', type=str, metavar='TASK',
                     help='Task name. Could be biosnap, bindingdb and davis.')
-parser.add_argument('--lr', '--learning-rate', default=1e-5, type=float,
+parser.add_argument('-lr', '--learning-rate', default=1e-5, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
-
+parser.add_argument('--saving_dir', default='./results', type=str)
 
 def get_task(task_name):
     if task_name.lower() == 'biosnap':
@@ -44,7 +47,6 @@ def get_task(task_name):
         return './dataset/BindingDB'
     elif task_name.lower() == 'davis':
         return './dataset/DAVIS'
-
 
 def test(data_generator, model):
     y_pred = []
@@ -128,6 +130,15 @@ def main():
         model = nn.DataParallel(model, dim=0)
 
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+    print('--- Generate folders to save models ---')
+    a_train_time = get_date_postfix()
+    saving_dir = os.path.join(args.saving_dir, args.task, a_train_time)
+    saving_model_dir = os.path.join(saving_dir, 'train', 'model_dir')
+    # create directories if not exist
+    if not os.path.exists(saving_model_dir):
+        os.makedirs(saving_model_dir)
+
     print('--- Data Preparation ---')
     params = {'batch_size': args.batch_size,
               'shuffle': True,
@@ -190,6 +201,9 @@ def main():
                 max_auc = auc
             print('Validation at Epoch ' + str(epo + 1) + ' , AUROC: ' + str(auc) + ' , AUPRC: ' + str(
                 auprc) + ' , F1: ' + str(f1))
+
+        # save the trained model
+        torch.save(model.state_dict(), os.path.join(saving_model_dir, '{}-model.ckpt'.format(epo + 1)))
 
     print('--- Go for Testing ---')
     try:
