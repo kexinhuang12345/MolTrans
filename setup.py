@@ -12,7 +12,7 @@ with open(path.join(this_directory, 'requirements.txt'), encoding='utf-8') as f:
     requirements = f.read().splitlines()
 
 setup(
-    name="MolTrans", 
+    name="MolTrans",
     packages = ['MolTrans'],
     package_data={'MolTrans': ['ESPF/*']},
     version="0.0.1",
@@ -22,7 +22,7 @@ setup(
     description="",
     long_description=readme(),
     long_description_content_type="text/markdown",
-    url="https://github.com/kexinhuang12345/MolTrans",
+    url="https://github.com/pykao/MolTrans",
     install_requires=requirements,
     classifiers=[
         "Programming Language :: Python :: 3",
