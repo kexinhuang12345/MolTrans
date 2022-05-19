@@ -203,7 +203,7 @@ def main():
                 auprc) + ' , F1: ' + str(f1))
 
         # save the trained model
-        torch.save(model.state_dict(), os.path.join(saving_model_dir, '{}-model.ckpt'.format(epo + 1)))
+        #torch.save(model.state_dict(), os.path.join(saving_model_dir, '{}-model.ckpt'.format(epo + 1)))
 
     print('--- Go for Testing ---')
     try:
@@ -214,6 +214,7 @@ def main():
                     loss))
     except:
         print('testing failed')
+    torch.save(model_max.state_dict(), os.path.join(saving_model_dir, 'max-model.ckpt'))
     return model_max, loss_history
 
 
