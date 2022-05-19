@@ -1,5 +1,6 @@
 #!/bin/sh
 
+mkdir -p logs
 for d in 'biosnap' 'bindingdb' 'davis' ;
 do
     for i in 1 2 3 4 5 ;
