@@ -55,8 +55,8 @@ def test(data_generator, model):
     loss_accumulate = 0.0
     count = 0.0
     for i, (d, p, d_mask, p_mask, label) in enumerate(data_generator):
-        import IPython; IPython.embed(); exit(1)
-        score = model(d.long().cuda(), p.long().cuda(), d_mask.long().cuda(), p_mask.long().cuda())
+        #import IPython; IPython.embed(); exit(1)
+        score, _ = model(d.long().cuda(), p.long().cuda(), d_mask.long().cuda(), p_mask.long().cuda())
 
         m = torch.nn.Sigmoid()
         logits = torch.squeeze(m(score))
@@ -175,8 +175,8 @@ def main():
     for epo in range(args.epochs):
         model.train()
         for i, (d, p, d_mask, p_mask, label) in enumerate(training_generator):
-            import IPython; IPython.embed(); exit(1)
-            score = model(d.long().cuda(), p.long().cuda(), d_mask.long().cuda(), p_mask.long().cuda())
+            #import IPython; IPython.embed(); exit(1)
+            score, _ = model(d.long().cuda(), p.long().cuda(), d_mask.long().cuda(), p_mask.long().cuda())
 
             label = Variable(torch.from_numpy(np.array(label)).float()).cuda()
 
