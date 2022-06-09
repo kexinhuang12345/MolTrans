@@ -17,14 +17,14 @@ class BIN_Interaction_Flat(nn.Sequential):
     '''
         Interaction Network with 2D interaction map
     '''
-    
+
     def __init__(self, **config):
         super(BIN_Interaction_Flat, self).__init__()
         self.max_d = config['max_drug_seq']
         self.max_p = config['max_protein_seq']
         self.emb_size = config['emb_size']
         self.dropout_rate = config['dropout_rate']
-        
+
         #densenet
         self.scale_down_ratio = config['scale_down_ratio']
         self.growth_rate = config['growth_rate']
@@ -42,85 +42,85 @@ class BIN_Interaction_Flat(nn.Sequential):
         self.num_attention_heads = config['num_attention_heads']
         self.attention_probs_dropout_prob = config['attention_probs_dropout_prob']
         self.hidden_dropout_prob = config['hidden_dropout_prob']
-        
-        self.flatten_dim = config['flat_dim'] 
-        
+
+        self.flatten_dim = config['flat_dim']
+
         # specialized embedding with positional one
         self.demb = Embeddings(self.input_dim_drug, self.emb_size, self.max_d, self.dropout_rate)
         self.pemb = Embeddings(self.input_dim_target, self.emb_size, self.max_p, self.dropout_rate)
-        
+
         self.d_encoder = Encoder_MultipleLayers(self.n_layer, self.hidden_size, self.intermediate_size, self.num_attention_heads, self.attention_probs_dropout_prob, self.hidden_dropout_prob)
         self.p_encoder = Encoder_MultipleLayers(self.n_layer, self.hidden_size, self.intermediate_size, self.num_attention_heads, self.attention_probs_dropout_prob, self.hidden_dropout_prob)
-        
+
         self.icnn = nn.Conv2d(1, 3, 3, padding = 0)
-        
+
         self.decoder = nn.Sequential(
             nn.Linear(self.flatten_dim, 512),
             nn.ReLU(True),
-            
+
             nn.BatchNorm1d(512),
             nn.Linear(512, 64),
             nn.ReLU(True),
-            
+
             nn.BatchNorm1d(64),
             nn.Linear(64, 32),
             nn.ReLU(True),
-            
+
             #output layer
             nn.Linear(32, 1)
         )
-        
+
     def forward(self, d, p, d_mask, p_mask):
-        
+
         ex_d_mask = d_mask.unsqueeze(1).unsqueeze(2)
         ex_p_mask = p_mask.unsqueeze(1).unsqueeze(2)
-        
+
         ex_d_mask = (1.0 - ex_d_mask) * -10000.0
         ex_p_mask = (1.0 - ex_p_mask) * -10000.0
-        
+
         d_emb = self.demb(d) # batch_size x seq_length x embed_size
         p_emb = self.pemb(p)
 
         # set output_all_encoded_layers be false, to obtain the last layer hidden states only...
-        
+
         d_encoded_layers = self.d_encoder(d_emb.float(), ex_d_mask.float())
         #print(d_encoded_layers.shape)
         p_encoded_layers = self.p_encoder(p_emb.float(), ex_p_mask.float())
         #print(p_encoded_layers.shape)
 
-        # repeat to have the same tensor size for aggregation   
+        # repeat to have the same tensor size for aggregation
         d_aug = torch.unsqueeze(d_encoded_layers, 2).repeat(1, 1, self.max_p, 1) # repeat along protein size
         p_aug = torch.unsqueeze(p_encoded_layers, 1).repeat(1, self.max_d, 1, 1) # repeat along drug size
-        
+
         i = d_aug * p_aug # interaction
-        i_v = i.view(int(self.batch_size/self.gpus), -1, self.max_d, self.max_p) 
+        i_v = i.view(int(self.batch_size/self.gpus), -1, self.max_d, self.max_p)
         # batch_size x embed size x max_drug_seq_len x max_protein_seq_len
         i_v = torch.sum(i_v, dim = 1)
         #print(i_v.shape)
         i_v = torch.unsqueeze(i_v, 1)
         #print(i_v.shape)
-        
-        i_v = F.dropout(i_v, p = self.dropout_rate)        
-        
+
+        i_v = F.dropout(i_v, p = self.dropout_rate)
+
         #f = self.icnn2(self.icnn1(i_v))
         f = self.icnn(i_v)
-        
+
         #print(f.shape)
-        
+
         #f = self.dense_net(f)
         #print(f.shape)
-        
+
         f = f.view(int(self.batch_size/self.gpus), -1)
         #print(f.shape)
-        
+
         #f_encode = torch.cat((d_encoded_layers[:,-1], p_encoded_layers[:,-1]), dim = 1)
-        
+
         #score = self.decoder(torch.cat((f, f_encode), dim = 1))
         score = self.decoder(f)
-        return score    
-   
-# help classes    
-    
+        return score, i
+
+# help classes
+
 class LayerNorm(nn.Module):
     def __init__(self, hidden_size, variance_epsilon=1e-12):
 
@@ -151,7 +151,7 @@ class Embeddings(nn.Module):
         seq_length = input_ids.size(1)
         position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
         position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
-        
+
         words_embeddings = self.word_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
 
@@ -159,7 +159,7 @@ class Embeddings(nn.Module):
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
-    
+
 
 class SelfAttention(nn.Module):
     def __init__(self, hidden_size, num_attention_heads, attention_probs_dropout_prob):
@@ -210,7 +210,7 @@ class SelfAttention(nn.Module):
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
         return context_layer
-    
+
 
 class SelfOutput(nn.Module):
     def __init__(self, hidden_size, hidden_dropout_prob):
@@ -223,9 +223,9 @@ class SelfOutput(nn.Module):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        return hidden_states    
-    
-    
+        return hidden_states
+
+
 class Attention(nn.Module):
     def __init__(self, hidden_size, num_attention_heads, attention_probs_dropout_prob, hidden_dropout_prob):
         super(Attention, self).__init__()
@@ -235,8 +235,8 @@ class Attention(nn.Module):
     def forward(self, input_tensor, attention_mask):
         self_output = self.self(input_tensor, attention_mask)
         attention_output = self.output(self_output, input_tensor)
-        return attention_output    
-    
+        return attention_output
+
 class Intermediate(nn.Module):
     def __init__(self, hidden_size, intermediate_size):
         super(Intermediate, self).__init__()
@@ -271,14 +271,14 @@ class Encoder(nn.Module):
         attention_output = self.attention(hidden_states, attention_mask)
         intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)
-        return layer_output    
+        return layer_output
 
-    
+
 class Encoder_MultipleLayers(nn.Module):
     def __init__(self, n_layer, hidden_size, intermediate_size, num_attention_heads, attention_probs_dropout_prob, hidden_dropout_prob):
         super(Encoder_MultipleLayers, self).__init__()
         layer = Encoder(hidden_size, intermediate_size, num_attention_heads, attention_probs_dropout_prob, hidden_dropout_prob)
-        self.layer = nn.ModuleList([copy.deepcopy(layer) for _ in range(n_layer)])    
+        self.layer = nn.ModuleList([copy.deepcopy(layer) for _ in range(n_layer)])
 
     def forward(self, hidden_states, attention_mask, output_all_encoded_layers=True):
         all_encoder_layers = []
