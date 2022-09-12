@@ -1,5 +1,6 @@
 import copy
 from time import time
+import os
 
 import numpy as np
 import pandas as pd
@@ -17,25 +18,27 @@ from config import BIN_config_DBPE
 from models import BIN_Interaction_Flat
 from stream import BIN_Data_Encoder
 
+from utils import get_date_postfix
+
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if use_cuda else "cpu")
 
 parser = ArgumentParser(description='MolTrans Training.')
-parser.add_argument('-b', '--batch-size', default=16, type=int,
+parser.add_argument('-b', '--batch-size', default=64, type=int,
                     metavar='N',
                     help='mini-batch size (default: 16), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
 parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
                     help='number of data loading workers (default: 0)')
-parser.add_argument('--epochs', default=50, type=int, metavar='N',
+parser.add_argument('--epochs', default=30, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--task', choices=['biosnap', 'bindingdb', 'davis'],
                     default='', type=str, metavar='TASK',
                     help='Task name. Could be biosnap, bindingdb and davis.')
-parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
+parser.add_argument('-lr', '--learning-rate', default=1e-5, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
-
+parser.add_argument('--saving_dir', default='./results', type=str)
 
 def get_task(task_name):
     if task_name.lower() == 'biosnap':
@@ -45,7 +48,6 @@ def get_task(task_name):
     elif task_name.lower() == 'davis':
         return './dataset/DAVIS'
 
-
 def test(data_generator, model):
     y_pred = []
     y_label = []
@@ -53,7 +55,8 @@ def test(data_generator, model):
     loss_accumulate = 0.0
     count = 0.0
     for i, (d, p, d_mask, p_mask, label) in enumerate(data_generator):
-        score = model(d.long().cuda(), p.long().cuda(), d_mask.long().cuda(), p_mask.long().cuda())
+        #import IPython; IPython.embed(); exit(1)
+        score, _ = model(d.long().cuda(), p.long().cuda(), d_mask.long().cuda(), p_mask.long().cuda())
 
         m = torch.nn.Sigmoid()
         logits = torch.squeeze(m(score))
@@ -128,6 +131,15 @@ def main():
         model = nn.DataParallel(model, dim=0)
 
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+    print('--- Generate folders to save models ---')
+    a_train_time = get_date_postfix()
+    saving_dir = os.path.join(args.saving_dir, args.task, a_train_time)
+    saving_model_dir = os.path.join(saving_dir, 'train', 'model_dir')
+    # create directories if not exist
+    if not os.path.exists(saving_model_dir):
+        os.makedirs(saving_model_dir)
+
     print('--- Data Preparation ---')
     params = {'batch_size': args.batch_size,
               'shuffle': True,
@@ -163,7 +175,8 @@ def main():
     for epo in range(args.epochs):
         model.train()
         for i, (d, p, d_mask, p_mask, label) in enumerate(training_generator):
-            score = model(d.long().cuda(), p.long().cuda(), d_mask.long().cuda(), p_mask.long().cuda())
+            #import IPython; IPython.embed(); exit(1)
+            score, _ = model(d.long().cuda(), p.long().cuda(), d_mask.long().cuda(), p_mask.long().cuda())
 
             label = Variable(torch.from_numpy(np.array(label)).float()).cuda()
 
@@ -191,6 +204,9 @@ def main():
             print('Validation at Epoch ' + str(epo + 1) + ' , AUROC: ' + str(auc) + ' , AUPRC: ' + str(
                 auprc) + ' , F1: ' + str(f1))
 
+        # save the trained model
+        #torch.save(model.state_dict(), os.path.join(saving_model_dir, '{}-model.ckpt'.format(epo + 1)))
+
     print('--- Go for Testing ---')
     try:
         with torch.set_grad_enabled(False):
@@ -200,6 +216,7 @@ def main():
                     loss))
     except:
         print('testing failed')
+    torch.save(model_max.state_dict(), os.path.join(saving_model_dir, 'max-model.ckpt'))
     return model_max, loss_history
 
 
